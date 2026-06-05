@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Аналитика отдела продаж — ИП Гусев В.В.</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
+  --accent: #6366f1; --accent-light: #818cf8;
+  --green: #22c55e; --green-dim: #16653422;
+  --red: #ef4444; --red-dim: #991b1b22;
+  --yellow: #f59e0b; --yellow-dim: #92400e22;
+  --orange: #f97316;
+  --text: #e2e8f0; --text-dim: #94a3b8; --text-muted: #64748b;
+  --white: #ffffff;
+}
+
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  padding: 24px 28px; line-height: 1.5;
+}
+
+.header h1 { font-size: 26px; font-weight: 700; color: var(--white); }
+.header p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+
+.tabs { display: flex; gap: 8px; margin: 24px 0; flex-wrap: wrap; }
+.tab {
+  background: transparent; color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 20px; cursor: pointer; font-size: 14px; font-weight: 500;
+  transition: all 0.2s;
+}
+.tab.active { background: var(--accent); color: var(--white); border-color: var(--accent); }
+.tab:hover { border-color: var(--accent); }
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.metric {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px 18px;
+  border-left: 3px solid var(--accent-light);
+}
+.metric.good { border-left-color: var(--green); }
+.metric.bad { border-left-color: var(--red); }
+.metric.warn { border-left-color: var(--yellow); }
+.metric-label {
+  color: var(--text-dim); font-size: 12px; font-weight: 500;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+.metric-value {
+  font-size: 32px; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace; line-height: 1.2; margin-top: 4px;
+}
+.metric.good .metric-value { color: var(--green); }
+.metric.bad .metric-value { color: var(--red); }
+.metric.warn .metric-value { color: var(--yellow); }
+.metric-sub { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+
+.section-title {
+  font-size: 18px; font-weight: 600; margin: 32px 0 16px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border);
+}
+
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px; margin-bottom: 16px;
+}
+.card h3 { font-size: 14px; color: var(--text-dim); font-weight: 500; margin-bottom: 16px; }
+
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th {
+  padding: 10px 12px; text-align: left; color: var(--text-dim);
+  font-weight: 500; font-size: 12px; text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+td { padding: 12px; border-bottom: 1px solid #2a2d3a22; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+.badge {
+  padding: 2px 10px; border-radius: 20px;
+  font-size: 13px; font-weight: 600;
+  font-family: 'JetBrains Mono', monospace; display: inline-block;
+}
+.badge-red { background: #991b1b44; color: var(--red); }
+.badge-yellow { background: #92400e44; color: var(--yellow); }
+.badge-green { background: #16653444; color: var(--green); }
+.badge-orange { background: #9a340044; color: var(--orange); }
+
+.alert {
+  margin-top: 16px; padding: 12px 16px; border-radius: 8px; font-size: 13px;
+}
+.alert-yellow { background: var(--yellow-dim); border-left: 3px solid var(--yellow); color: var(--yellow); }
+.alert-green { background: var(--green-dim); border-left: 3px solid var(--green); color: var(--green); }
+.alert-red { background: var(--red-dim); border-left: 3px solid var(--red); color: var(--red); }
+
+.conclusion-card {
+  background: var(--card); border-radius: 12px; padding: 20px 24px;
+  margin-bottom: 14px; border: 1px solid var(--border);
+}
+.conclusion-card h3 { font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+.conclusion-card p { color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 900px) { .action-grid { grid-template-columns: 1fr; } }
+.action-block {
+  background: var(--card); border-radius: 12px; padding: 18px 20px;
+  border: 1px solid var(--border);
+}
+.action-block h4 { color: var(--accent-light); font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+.action-item { display: flex; gap: 8px; margin-bottom: 6px; font-size: 13px; color: var(--text-dim); }
+.action-item span:first-child { color: var(--accent); }
+
+.risk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.risk-card {
+  background: var(--card); border-radius: 12px; padding: 16px 20px;
+  border: 1px solid var(--border);
+}
+.risk-card.critical { border-left: 3px solid var(--red); }
+.risk-card.warning { border-left: 3px solid var(--yellow); }
+.risk-header { display: flex; justify-content: space-between; align-items: center; }
+.risk-header span:first-child { font-weight: 600; font-size: 15px; }
+.risk-desc { color: var(--text-muted); font-size: 13px; margin-top: 6px; }
+
+.footer {
+  margin-top: 40px; padding: 16px 0; border-top: 1px solid var(--border);
+  text-align: center; color: var(--text-muted); font-size: 12px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 Аналитика отдела продаж</h1>
+  <p>ИП Гусев В.В. · Данные CRM + РНП · Январь — Май 2026</p>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('overview')">Обзор</button>
+  <button class="tab" onclick="showTab('new')">Новые клиенты</button>
+  <button class="tab" onclick="showTab('existing')">Действующие</button>
+  <button class="tab" onclick="showTab('crm')">CRM дисциплина</button>
+  <button class="tab" onclick="showTab('conclusions')">Выводы</button>
+</div>
+
+<!-- OVERVIEW -->
+<div id="overview" class="panel active">
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">Лиды (новые)</div><div class="metric-value" style="color:var(--accent-light)">4 498</div><div class="metric-sub">за янв–май 2026</div></div>
+    <div class="metric good"><div class="metric-label">Целевые лиды</div><div class="metric-value">3 221</div><div class="metric-sub">71.6% от всех</div></div>
+    <div class="metric"><div class="metric-label">Заказы (новые)</div><div class="metric-value" style="color:var(--accent-light)">83</div><div class="metric-sub">целевые → заказ</div></div>
+    <div class="metric bad"><div class="metric-label">Конверсия</div><div class="metric-value">2.58%</div><div class="metric-sub">норма 10–15%</div></div>
+  </div>
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">Касания (действующие)</div><div class="metric-value" style="color:var(--accent-light)">1 574</div><div class="metric-sub">за янв–май 2026</div></div>
+    <div class="metric good"><div class="metric-label">Заказы (действующие)</div><div class="metric-value">283</div><div class="metric-sub">касание → заказ</div></div>
+    <div class="metric good"><div class="metric-label">Конверсия действующих</div><div class="metric-value">18.0%</div><div class="metric-sub">выше ориентира</div></div>
+    <div class="metric warn"><div class="metric-label">Разрыв</div><div class="metric-value">×7</div><div class="metric-sub">действующие vs новые</div></div>
+  </div>
+
+  <h2 class="section-title">📊 Конверсия по месяцам</h2>
+  <div class="charts-grid">
+    <div class="card"><h3>Новые клиенты: лиды и заказы</h3><canvas id="chartNewMonth"></canvas></div>
+    <div class="card"><h3>Действующие: касания и заказы</h3><canvas id="chartExMonth"></canvas></div>
+  </div>
+
+  <h2 class="section-title">🎯 Конверсия: факт vs ориентиры</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Этап воронки</th><th>Плохо</th><th>Нормально</th><th>Хорошо</th><th>Факт</th></tr></thead>
+      <tbody>
+        <tr><td>Лиды → Целевые</td><td style="color:var(--red)">&lt;50%</td><td style="color:var(--yellow)">50–70%</td><td style="color:var(--green)">70%+</td><td><span class="badge badge-green">71.6%</span></td></tr>
+        <tr><td>Целевые → Заказ</td><td style="color:var(--red)">&lt;10%</td><td style="color:var(--yellow)">10–15%</td><td style="color:var(--green)">15%+</td><td><span class="badge badge-red">2.58%</span></td></tr>
+        <tr><td>Заказ → Счёт</td><td style="color:var(--red)">&lt;60%</td><td style="color:var(--yellow)">60–80%</td><td style="color:var(--green)">80%+</td><td><span class="badge badge-green">85%</span></td></tr>
+        <tr><td>Счёт → Оплата</td><td style="color:var(--red)">&lt;50%</td><td style="color:var(--yellow)">50–75%</td><td style="color:var(--green)">75%+</td><td><span class="badge badge-green">80%</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- NEW CLIENTS -->
+<div id="new" class="panel">
+  <div class="metrics">
+    <div class="metric bad"><div class="metric-label">Целевые лиды</div><div class="metric-value">3 221</div><div class="metric-sub">за янв–май 2026</div></div>
+    <div class="metric bad"><div class="metric-label">Заказы</div><div class="metric-value">83</div><div class="metric-sub">из целевых лидов</div></div>
+    <div class="metric bad"><div class="metric-label">Конверсия</div><div class="metric-value">2.58%</div><div class="metric-sub">ориентир 10–15%</div></div>
+  </div>
+  <div class="metrics" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))">
+    <div class="metric bad"><div class="metric-label">Тренд</div><div class="metric-value">→ Стагнация</div><div class="metric-sub">янв 2.5% → май 2.2%</div></div>
+    <div class="metric warn"><div class="metric-label">Лучший менеджер</div><div class="metric-value">Ирина</div><div class="metric-sub">5.45% — всё равно ниже нормы</div></div>
+    <div class="metric bad"><div class="metric-label">Худший менеджер</div><div class="metric-value">Михаил</div><div class="metric-sub">0.93% — критично</div></div>
+  </div>
+
+  <h2 class="section-title">👥 Менеджеры: новые клиенты (янв–май 2026)</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Менеджер</th><th>Целевые лиды</th><th>Заказы</th><th>Конверсия</th><th>Оценка</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:600">Ирина</td><td class="mono">367</td><td class="mono">20</td><td><span class="badge badge-yellow">5.45%</span></td><td style="color:var(--yellow)">⚠️ Лучшая, но ниже нормы</td></tr>
+        <tr><td style="font-weight:600">Дарья</td><td class="mono">1 466</td><td class="mono">43</td><td><span class="badge badge-orange">2.93%</span></td><td style="color:var(--orange)">🔻 Слабо</td></tr>
+        <tr><td style="font-weight:600">Лилия</td><td class="mono">525</td><td class="mono">12</td><td><span class="badge badge-orange">2.29%</span></td><td style="color:var(--orange)">🔻 Слабо</td></tr>
+        <tr><td style="font-weight:600">Михаил</td><td class="mono">863</td><td class="mono">8</td><td><span class="badge badge-red">0.93%</span></td><td style="color:var(--red)">🚨 Критично</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="charts-grid">
+    <div class="card"><h3>Конверсия по менеджерам</h3><canvas id="chartManagersCV"></canvas></div>
+    <div class="card"><h3>Динамика конверсии новых по месяцам</h3><canvas id="chartNewCV"></canvas></div>
+  </div>
+</div>
+
+<!-- EXISTING -->
+<div id="existing" class="panel">
+  <div class="metrics">
+    <div class="metric good"><div class="metric-label">Касания</div><div class="metric-value">1 574</div><div class="metric-sub">за янв–май 2026</div></div>
+    <div class="metric good"><div class="metric-label">Заказы</div><div class="metric-value">283</div><div class="metric-sub">из касаний</div></div>
+    <div class="metric good"><div class="metric-label">Конверсия</div><div class="metric-value">18.0%</div><div class="metric-sub">ориентир 10–15%</div></div>
+  </div>
+  <div class="metrics" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))">
+    <div class="metric good"><div class="metric-label">Тренд</div><div class="metric-value">↗ Рост</div><div class="metric-sub">янв 18.7% → май 23.7%</div></div>
+    <div class="metric good"><div class="metric-label">Лучший менеджер</div><div class="metric-value">Дарья</div><div class="metric-sub">77 сделок, 0 просрочек, 0 без задач</div></div>
+    <div class="metric bad"><div class="metric-label">Худший менеджер</div><div class="metric-value">Лусине</div><div class="metric-sub">14 сделок — все 14 без задач</div></div>
+  </div>
+
+  <h2 class="section-title">📈 Конверсия действующих по месяцам</h2>
+  <div class="card"><canvas id="chartExCV"></canvas></div>
+
+  <h2 class="section-title">⚠️ CRM: действующие клиенты по менеджерам</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Менеджер</th><th>Сделок</th><th>Без задачи</th><th>Просрочено</th><th>Проблема</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:600">Дарья</td><td class="mono">77</td><td style="color:var(--green);font-weight:600">0</td><td style="color:var(--green);font-weight:600">0</td><td style="color:var(--green)">Порядок</td></tr>
+        <tr><td style="font-weight:600">Лилия</td><td class="mono">34</td><td style="color:var(--yellow);font-weight:600">2</td><td style="color:var(--green);font-weight:600">0</td><td style="color:var(--yellow)">Есть без задач</td></tr>
+        <tr><td style="font-weight:600">Анастасия</td><td class="mono">21</td><td style="color:var(--red);font-weight:600">15</td><td style="color:var(--green);font-weight:600">0</td><td style="color:var(--red)">Зависшие карточки</td></tr>
+        <tr><td style="font-weight:600">Лусине</td><td class="mono">14</td><td style="color:var(--red);font-weight:600">14</td><td style="color:var(--green);font-weight:600">0</td><td style="color:var(--red)">Все без задач</td></tr>
+        <tr><td style="font-weight:600">Максим</td><td class="mono">14</td><td style="color:var(--red);font-weight:600">10</td><td style="color:var(--red);font-weight:600">4</td><td style="color:var(--red)">Зависшие + просрочки</td></tr>
+        <tr><td style="font-weight:600">Дутов</td><td class="mono">1</td><td style="color:var(--green);font-weight:600">0</td><td style="color:var(--red);font-weight:600">1</td><td style="color:var(--red)">Единственная просрочена</td></tr>
+      </tbody>
+    </table>
+    <div class="alert alert-yellow"><strong>95 из 161 открытых сделок</strong> в статусе «ожидаем касания». 41 без задачи = зависшие карточки.</div>
+  </div>
+</div>
+
+<!-- CRM -->
+<div id="crm" class="panel">
+
+  <h2 class="section-title">🔍 Новые клиенты — CRM дисциплина</h2>
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">Полная база</div><div class="metric-value" style="color:var(--accent-light)">995</div><div class="metric-sub">186 открытых + 809 закрытых</div></div>
+    <div class="metric bad"><div class="metric-label">Просрочено (открытые)</div><div class="metric-value">62</div></div>
+    <div class="metric warn"><div class="metric-label">Без задачи</div><div class="metric-value">10</div></div>
+    <div class="metric good"><div class="metric-label">Успешно реализовано</div><div class="metric-value">48</div><div class="metric-sub">4.8% от всех сделок</div></div>
+  </div>
+
+  <div class="card"><h3>Новые клиенты (открытые): сделки, просрочки, без задач</h3><canvas id="chartCRM"></canvas></div>
+
+  <h2 class="section-title">🚨 Зоны риска — новые клиенты (открытые)</h2>
+  <div class="risk-grid">
+    <div class="risk-card critical"><div class="risk-header"><span>Лусине</span><span class="badge badge-red">71% просрочено</span></div><div class="risk-desc">49 просрочек из 69 открытых сделок</div></div>
+    <div class="risk-card critical"><div class="risk-header"><span>Дутов</span><span class="badge badge-red">90% просрочено</span></div><div class="risk-desc">9 просрочек из 10 сделок</div></div>
+    <div class="risk-card critical"><div class="risk-header"><span>Максим</span><span class="badge badge-red">100% просрочено</span></div><div class="risk-desc">4 из 4 просрочены</div></div>
+    <div class="risk-card warning"><div class="risk-header"><span>Анастасия</span><span class="badge badge-yellow">63% без задач</span></div><div class="risk-desc">5 из 8 без задачи</div></div>
+  </div>
+
+  <div class="alert alert-green" style="margin-top:20px"><strong>Дарья</strong> — 55 открытых сделок, 0 просрочек, 0 без задач, 41 примечание. Единственный менеджер в порядке.</div>
+
+  <h2 class="section-title">📛 Причины закрытия (761 не реализовано)</h2>
+  <div class="card"><canvas id="chartReasons"></canvas></div>
+
+  <div style="margin-top:40px; border-top: 2px solid var(--border); padding-top: 8px;"></div>
+
+  <h2 class="section-title">📋 Действующие клиенты — CRM дисциплина</h2>
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">Полная база</div><div class="metric-value" style="color:var(--accent-light)">381</div><div class="metric-sub">161 открытых + 220 закрытых</div></div>
+    <div class="metric bad"><div class="metric-label">Без задачи (открытые)</div><div class="metric-value">41</div></div>
+    <div class="metric warn"><div class="metric-label">Просрочено</div><div class="metric-value">5</div></div>
+    <div class="metric good"><div class="metric-label">Успешно реализовано</div><div class="metric-value">171</div><div class="metric-sub">44.9% от всех сделок</div></div>
+  </div>
+
+  <div class="card">
+    <h3>Действующие клиенты (открытые): сделки, без задач, просрочки</h3>
+    <canvas id="chartCRMex"></canvas>
+  </div>
+
+  <h2 class="section-title">🚨 Зоны риска — действующие клиенты (открытые)</h2>
+  <div class="risk-grid">
+    <div class="risk-card critical"><div class="risk-header"><span>Лусине</span><span class="badge badge-red">100% без задач</span></div><div class="risk-desc">14 из 14 сделок без задачи</div></div>
+    <div class="risk-card critical"><div class="risk-header"><span>Максим</span><span class="badge badge-red">71% без задач</span></div><div class="risk-desc">10 без задач + 4 просрочки из 14 сделок</div></div>
+    <div class="risk-card warning"><div class="risk-header"><span>Анастасия</span><span class="badge badge-yellow">71% без задач</span></div><div class="risk-desc">15 из 21 сделки без задачи</div></div>
+    <div class="risk-card warning"><div class="risk-header"><span>Дутов</span><span class="badge badge-yellow">1 сделка просрочена</span></div><div class="risk-desc">1 из 1 — единственная сделка просрочена</div></div>
+  </div>
+
+  <div class="alert alert-green" style="margin-top:20px"><strong>Дарья</strong> — 77 открытых сделок, 0 просрочек, 0 без задач, 42 примечания. В полном порядке и по новым, и по действующим.</div>
+
+  <div class="alert alert-yellow" style="margin-top:12px"><strong>Общая проблема:</strong> 95 из 161 открытых в статусе «ожидаем касания» + 41 без задачи. Нужна чистка: поставить задачу, перевести в «неактивен» или закрыть.</div>
+</div>
+
+<!-- CONCLUSIONS -->
+<div id="conclusions" class="panel">
+  <h2 class="section-title">🎯 Главные выводы</h2>
+
+  <div class="conclusion-card" style="border-left:4px solid var(--red)"><h3 style="color:var(--red)">🚨 Новые клиенты — главный провал</h3><p>4 498 лидов → 83 заказа = 2.58% конверсии. При ориентире 10–15% это в 4–6 раз ниже нормы. Проблема не в количестве лидов, а в качестве обработки.</p></div>
+  <div class="conclusion-card" style="border-left:4px solid var(--green)"><h3 style="color:var(--green)">✅ Действующие клиенты — работают</h3><p>1 574 касания → 283 заказа = 18% конверсии. Тренд положительный: с 18.7% в январе до 23.7% в мае. База работает, её надо сохранять и развивать.</p></div>
+  <div class="conclusion-card" style="border-left:4px solid var(--yellow)"><h3 style="color:var(--yellow)">⚠️ РОП не держит контроль</h3><p>РНП заполняется не всеми менеджерами. Максим и Настя лишены KPI за незаполнение. РОП должен закрывать РНП сам, сверяя с CRM, телефонией, 1С. Причина отказа — не «бутылочное горлышко», а конкретно: дорого, не актуально, ушёл к конкуренту, не дожали.</p></div>
+  <div class="conclusion-card" style="border-left:4px solid var(--orange)"><h3 style="color:var(--orange)">📋 CRM ведётся неравномерно</h3><p>62 просроченных задачи по новым, 5 по действующим. Основные проблемы: Лусине (49 из 69 просрочено), Дутов (9 из 10), Максим (4 из 4). Полная база: 995 новых + 381 действующий. Дарья — единственная с нулевыми просрочками.</p></div>
+
+  <h2 class="section-title">🔧 Что делать</h2>
+  <div class="action-grid">
+    <div class="action-block"><h4>РНП</h4>
+      <div class="action-item"><span>→</span><span>РОП закрывает отчёт, не менеджеры</span></div>
+      <div class="action-item"><span>→</span><span>Сверка с CRM / телефонией / 1С</span></div>
+      <div class="action-item"><span>→</span><span>К планёрке — актуальные данные</span></div>
+      <div class="action-item"><span>→</span><span>Причины отказа: дорого, не актуально, конкурент</span></div>
+    </div>
+    <div class="action-block"><h4>CRM</h4>
+      <div class="action-item"><span>→</span><span>Ежедневный контроль просрочек</span></div>
+      <div class="action-item"><span>→</span><span>Ежедневный контроль сделок без задач</span></div>
+      <div class="action-item"><span>→</span><span>Чистка зависших «ожидаем касания»</span></div>
+      <div class="action-item"><span>→</span><span>Разбор лидов без финального статуса</span></div>
+    </div>
+    <div class="action-block"><h4>Менеджеры</h4>
+      <div class="action-item"><span>→</span><span>Смотреть: целевые → заказ</span></div>
+      <div class="action-item"><span>→</span><span>Смотреть: просрочки и без задач</span></div>
+      <div class="action-item"><span>→</span><span>Смотреть: движение по этапам</span></div>
+      <div class="action-item"><span>→</span><span>Смотреть: примечания в карточках</span></div>
+    </div>
+    <div class="action-block"><h4>Действующие клиенты</h4>
+      <div class="action-item"><span>→</span><span>Не держать мёртвые карточки</span></div>
+      <div class="action-item"><span>→</span><span>Каждому клиенту — понятный статус</span></div>
+      <div class="action-item"><span>→</span><span>Нет контакта 30–60 дн → неактивен</span></div>
+      <div class="action-item"><span>→</span><span>Старые зависшие → закрыть</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">Подготовлено для Гусева В.В. · Источники: CRM (Битрикс24 / 1С:УНФ), РНП · Период: январь–май 2026</div>
+
+<script>
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#2a2d3a';
+Chart.defaults.font.family = "'Segoe UI', sans-serif";
+
+function showTab(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Overview charts
+new Chart(document.getElementById('chartNewMonth'), {
+  type: 'bar',
+  data: {
+    labels: ['Янв','Фев','Мар','Апр','Май'],
+    datasets: [
+      { label: 'Лиды', data: [944,1352,1197,686,319], backgroundColor: '#6366f1', borderRadius: 4 },
+      { label: 'Заказы', data: [24,21,20,11,7], backgroundColor: '#ef4444', borderRadius: 4 }
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+});
+
+new Chart(document.getElementById('chartExMonth'), {
+  type: 'bar',
+  data: {
+    labels: ['Янв','Фев','Мар','Апр','Май'],
+    datasets: [
+      { label: 'Касания', data: [332,496,303,215,228], backgroundColor: '#818cf8', borderRadius: 4 },
+      { label: 'Заказы', data: [62,73,46,48,54], backgroundColor: '#22c55e', borderRadius: 4 }
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+});
+
+// New clients charts
+new Chart(document.getElementById('chartManagersCV'), {
+  type: 'bar',
+  data: {
+    labels: ['Ирина','Дарья','Лилия','Михаил'],
+    datasets: [{ label: 'Конверсия %', data: [5.45,2.93,2.29,0.93], backgroundColor: ['#f59e0b','#f97316','#f97316','#ef4444'], borderRadius: 6 }]
+  },
+  options: {
+    indexAxis: 'y', responsive: true,
+    plugins: { legend: { display: false },
+      annotation: { annotations: { line1: { type: 'line', xMin: 10, xMax: 10, borderColor: '#22c55e', borderWidth: 2, borderDash: [6,6] } } }
+    },
+    scales: { x: { beginAtZero: true, max: 16, ticks: { callback: v => v+'%' } } }
+  }
+});
+
+new Chart(document.getElementById('chartNewCV'), {
+  type: 'line',
+  data: {
+    labels: ['Янв','Фев','Мар','Апр','Май'],
+    datasets: [{ label: 'Конверсия %', data: [2.5,1.6,1.7,1.6,2.2], borderColor: '#ef4444', backgroundColor: '#ef444422', tension: 0.3, fill: true, pointRadius: 5 }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 16, ticks: { callback: v => v+'%' } } } }
+});
+
+// Existing clients chart
+new Chart(document.getElementById('chartExCV'), {
+  type: 'line',
+  data: {
+    labels: ['Янв','Фев','Мар','Апр','Май'],
+    datasets: [{ label: 'Конверсия %', data: [18.7,14.7,15.2,22.3,23.7], borderColor: '#22c55e', backgroundColor: '#22c55e22', tension: 0.3, fill: true, pointRadius: 6, borderWidth: 3 }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 30, ticks: { callback: v => v+'%' } } } }
+});
+
+// CRM chart — new clients (open only)
+new Chart(document.getElementById('chartCRM'), {
+  type: 'bar',
+  data: {
+    labels: ['Лусине','Дарья','Лилия','Дутов','Анастасия','Максим'],
+    datasets: [
+      { label: 'Открытые сделки', data: [69,55,37,10,8,4], backgroundColor: '#6366f1', borderRadius: 4 },
+      { label: 'Просрочено', data: [49,0,0,9,0,4], backgroundColor: '#ef4444', borderRadius: 4 },
+      { label: 'Без задачи', data: [1,0,1,0,5,0], backgroundColor: '#f59e0b', borderRadius: 4 }
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+});
+
+// Closure reasons chart
+new Chart(document.getElementById('chartReasons'), {
+  type: 'bar',
+  data: {
+    labels: ['Без причины','Неправ. контакт','Не ЦА','Пропала потребность','В розницу','Не устроили условия','НДЗ','Дорого','Большой объём','Выбрали других'],
+    datasets: [{ label: 'Сделок', data: [253,174,130,44,40,40,32,25,21,2], backgroundColor: ['#64748b','#94a3b8','#94a3b8','#f59e0b','#818cf8','#f97316','#64748b','#ef4444','#818cf8','#ef4444'], borderRadius: 4 }]
+  },
+  options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+});
+
+// CRM existing clients chart (open only)
+new Chart(document.getElementById('chartCRMex'), {
+  type: 'bar',
+  data: {
+    labels: ['Дарья','Лилия','Анастасия','Лусине','Максим','Дутов'],
+    datasets: [
+      { label: 'Открытые сделки', data: [77,34,21,14,14,1], backgroundColor: '#6366f1', borderRadius: 4 },
+      { label: 'Без задачи', data: [0,2,15,14,10,0], backgroundColor: '#f59e0b', borderRadius: 4 },
+      { label: 'Просрочено', data: [0,0,0,0,4,1], backgroundColor: '#ef4444', borderRadius: 4 }
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+});
+</script>
+</body>
+</html>
